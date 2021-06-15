@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 struct rotor_structure {
-    char substitutions[52]; // Stores normal substitutions in positions 0-25 and reflections in 26-51
+    char substitutions[26]; // Stores normal substitutions in positions 0-25 and reflections in 26-51
     unsigned short notch : 5; // Notch position
     unsigned short step : 5; // Current rotation step
 };

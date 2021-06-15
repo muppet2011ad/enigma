@@ -2,6 +2,13 @@
 #include "rotor.h"
 #include <string.h>
 
+int mod(int i, int j) {
+    if (i < 0) {
+        i += j;
+    }
+    return i % j;
+}
+
 int r_rotate(rotor r) {
     int special = 0; // Determines whether rotor 2 rotates if this is rotor 1 or we double step if this is rotor 2
     // Behaviour is implemented by whatever calls this
@@ -13,7 +20,20 @@ int r_rotate(rotor r) {
 }
 
 char r_sub (rotor r, char c, int reflected) { // Performs substitution in both directions
-    return r->substitutions[((c - 'A' + r->step) % 26) + reflected*26];
+    if (reflected){
+        char result = 'a';
+        c = (((c - 'A') + r->step) % 26) + 'A';
+        int x = -1;
+        while (result != c) {
+            x++;
+            result = r->substitutions[(x + r->step) % 26];
+        }
+        return x + 'A';
+    }
+    else {
+        int raw = r->substitutions[(c - 'A' + r->step) % 26] - 'A';
+        return 'A' + mod(raw - r->step, 26);
+    }
 }
 
 rotor create_rotor(r_template template, char start_pos) { // Creates a rotor
@@ -21,11 +41,6 @@ rotor create_rotor(r_template template, char start_pos) { // Creates a rotor
     r->notch = template.notch - 'A';
     r->step = start_pos - 'A';
     strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
-    for (int i = 0; i < 26; i++) { // Calculates substitutions in the reflected direction (quicker than working it out for every keypress)
-        char reverse_input = r->substitutions[i];
-        r->substitutions[26 + reverse_input - 'A'] = 'A' + i;
-    }
-
     return r;
 }
 
