@@ -12,7 +12,14 @@ struct rotor_structure {
 
 typedef struct rotor_structure *rotor;
 
-rotor create_rotor(char* subs, char notch, char start_pos);
+struct rotor_template {
+    char substitutions[26];
+    char notch;
+};
+
+typedef struct rotor_template r_template;
+
+rotor create_rotor(r_template template, char start_pos);
 char r_sub (rotor r, char c, int reflected);
 int r_rotate(rotor r);
 char r_get_position(rotor r);

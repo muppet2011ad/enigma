@@ -16,11 +16,11 @@ char r_sub (rotor r, char c, int reflected) { // Performs substitution in both d
     return r->substitutions[((c - 'A' + r->step) % 26) + reflected*26];
 }
 
-rotor create_rotor(char* subs, char notch, char start_pos) { // Creates a rotor
+rotor create_rotor(r_template template, char start_pos) { // Creates a rotor
     rotor r = malloc(sizeof(struct rotor_structure)); // TODO: error checking on malloc
-    r->notch = notch - 'A';
+    r->notch = template.notch - 'A';
     r->step = start_pos - 'A';
-    strncpy(r->substitutions, subs, 26); // Copies substitutions in
+    strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
     for (int i = 0; i < 26; i++) { // Calculates substitutions in the reflected direction (quicker than working it out for every keypress)
         char reverse_input = r->substitutions[i];
         r->substitutions[26 + reverse_input - 'A'] = 'A' + i;
