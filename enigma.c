@@ -4,6 +4,7 @@
 #include "rotor.h"
 
 void keypress_rotate(rotor rotors[3]);
+char *encode_message(char *message, rotor rotors[3], rotor reflector);
 
 int main() {
     int num_lines = 0;
@@ -13,34 +14,33 @@ int main() {
     read_lines(file, &lines, &num_lines, &lines_arr_size);
     fclose(file);
 
-    char rotor_subs[num_lines][26];
-    char rotor_notches[num_lines-1];
+    r_template templates[num_lines];
 
     for (int i = 0; i < num_lines; i++) {
         char *ptr = strtok(lines[i], " ");
-        strncpy(rotor_subs[i], ptr, 26);
+        strncpy(templates[i].substitutions, ptr, 26);
+        ptr = strtok(NULL, " ");
         if (i != num_lines-1) {
-            ptr = strtok(NULL, " ");
-            rotor_notches[i] = *ptr;
+            templates[i].notch = *ptr;
         }
         else {
-            rotor_notches[i] = 26;
+            templates[i].notch = 27;
         }
         free(lines[i]);
     }
+
     free(lines);
 
-    rotor r0 = create_rotor(rotor_subs[0], rotor_notches[0], 'P');
-    rotor r1 = create_rotor(rotor_subs[2], rotor_notches[2], 'U');
-    rotor r2 = create_rotor(rotor_subs[4], rotor_notches[4], 'H');
+    rotor r0 = create_rotor(templates[0], 'A');
+    rotor r1 = create_rotor(templates[1], 'A');
+    rotor r2 = create_rotor(templates[2], 'A');
+    rotor rr = create_rotor(templates[num_lines-1], 'A');
 
     rotor rotors[] = {r0, r1, r2};
 
-    for (int i = 0; i < 10; i++) {
-        printf("%c, %c, %c\n", r_get_position(r0), r_get_position(r1), r_get_position(r2));
-        keypress_rotate(rotors);
-    }
+    char *result = encode_message("PROGRAMMINGPUZZLES", rotors, rr);
 
+    printf("%s\n", result);
 }
 
 void keypress_rotate(rotor rotors[3]) {
@@ -52,4 +52,16 @@ void keypress_rotate(rotor rotors[3]) {
         r_rotate(rotors[1]);
         r_rotate(rotors[2]);
     }
+}
+
+char *encode_message(char *message, rotor rotors[3], rotor reflector) {
+    int msg_len = strlen(message);
+    char *encoded = malloc(msg_len+1);
+    for (int i = 0; i < msg_len; i++) {
+        keypress_rotate(rotors);
+        // Absolutely cursed line of code here but it essentially manages the whole journey from rotor 0 to the reflector and back
+        encoded[i] = r_sub(rotors[0], r_sub(rotors[1], r_sub(rotors[2], r_sub(reflector, r_sub(rotors[2], r_sub(rotors[1], r_sub(rotors[0], message[i], 0), 0), 0), 1), 1), 1), 1);
+    }
+    encoded[msg_len] = '\0';
+    return encoded;
 }
