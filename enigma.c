@@ -68,7 +68,18 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
     e->rotors[1] = create_rotor(templates[config_lines[0][2] - '1'], config_lines[1][2], config_lines[2][2]);
     e->rotors[2] = create_rotor(templates[config_lines[0][4] - '1'], config_lines[1][4], config_lines[2][4]);
     e->reflector = create_rotor(templates[num_templates-1], 'A', 'A');
-    strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
+
+    strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26); // Copy in identity plugboard
+    // Loops through steckered pairs given in config
+    if (config_lines[3] != NULL) {
+        char *ptr = strtok(config_lines[3], " ");
+        while (ptr != NULL) {
+            e->plugboard[ptr[0] - 'A'] = ptr[1];
+            e->plugboard[ptr[1] - 'A'] = ptr[0];
+            ptr = strtok(NULL, " ");
+        }
+    }
+
     for (int i = 0; i < num_config_lines; i++) {
         free(config_lines[i]);
     }
