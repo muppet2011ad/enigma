@@ -6,7 +6,7 @@
 struct enigma_structure {
     rotor rotors[3];
     rotor reflector;
-    char plugboard[26]; // Used to perform substitution
+    char plugboard[27]; // Used to perform substitution
     char pairs[30]; // Not needed for enigma functionality, but useful to output plugboard config
 };
 
@@ -75,7 +75,7 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
     e->rotors[2] = create_rotor(templates[config_lines[0][4] - '1'], config_lines[1][4], config_lines[2][4]);
     e->reflector = create_rotor(templates[num_templates-1], 'A', 'A');
 
-    strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26); // Copy in identity plugboard
+    strcpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"); // Copy in identity plugboard
     // Loops through steckered pairs given in config
     if (config_lines[3] != NULL) {
         strncpy(e->pairs, config_lines[3], 30);
