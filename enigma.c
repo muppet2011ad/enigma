@@ -3,9 +3,19 @@
 #include "readlines.h"
 #include "rotor.h"
 
+struct enigma_structure {
+    rotor rotors[3];
+    rotor reflector;
+    char plugboard[26];
+};
+
+typedef struct enigma_structure *enigma;
+
 void keypress_rotate(rotor rotors[3]);
 char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugboard[26]);
 char p_sub(char c, char p[26]);
+void input(char *string,int length);
+enigma create_engima(FILE *config_file, r_template templates[], int num_templates);
 
 int main() {
     int num_lines = 0;
@@ -32,16 +42,29 @@ int main() {
 
     free(lines);
 
-    rotor r0 = create_rotor(templates[0], 'A', 'B');
-    rotor r1 = create_rotor(templates[1], 'A', 'B');
-    rotor r2 = create_rotor(templates[2], 'A', 'B');
-    rotor rr = create_rotor(templates[num_lines-1], 'A', 'A');
+    enigma e = create_engima(fopen("config", "r"), templates, num_lines);
 
-    rotor rotors[] = {r0, r1, r2};
+    printf("Enter message to be encoded: ");
+    char buffer[BUFFER_SIZE];
+    input(buffer, BUFFER_SIZE);
 
-    char *result = encode_message("AAAAA", rotors, rr, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    char *result = encode_message(buffer, e->rotors, e->reflector, e->plugboard);
 
-    printf("%s\n", result);
+    printf("Result: %s\n", result);
+}
+
+enigma create_engima(FILE *config_file, r_template templates[], int num_templates) {
+    enigma e = malloc(sizeof(struct enigma_structure)); // Allocate memory for enigma
+    int num_config_lines = 0;
+    int config_lines_arr_size = LINES_ARR_LEN;
+    char **config_lines = calloc(LINES_ARR_LEN, sizeof(char*));
+    read_lines(config_file, &config_lines, &num_config_lines, &config_lines_arr_size); // Read in config file
+    e->rotors[0] = create_rotor(templates[config_lines[0][0] - '1'], config_lines[1][0], config_lines[2][0]);
+    e->rotors[1] = create_rotor(templates[config_lines[0][2] - '1'], config_lines[1][2], config_lines[2][2]);
+    e->rotors[2] = create_rotor(templates[config_lines[0][4] - '1'], config_lines[1][4], config_lines[2][4]);
+    e->reflector = create_rotor(templates[num_templates-1], 'A', 'A');
+    strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
+    return e;
 }
 
 void keypress_rotate(rotor rotors[3]) {
@@ -71,4 +94,21 @@ char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugb
     }
     encoded[msg_len] = '\0';
     return encoded;
+}
+
+void input(char *string,int length) {
+    fgets(string,length,stdin);
+    int i = 0;
+    while(*string != '\n') {
+        i++;
+        if (i == length) {
+            *string = '\n';
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF);
+        }
+        else {
+            string++;
+        }
+    }
+    *string = '\0';
 }
