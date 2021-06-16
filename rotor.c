@@ -22,24 +22,25 @@ int r_rotate(rotor r) {
 char r_sub (rotor r, char c, int reflected) { // Performs substitution in both directions
     if (reflected){
         char result = 'a';
-        c = (((c - 'A') + r->step) % 26) + 'A';
+        c = mod((c - 'A') + (r->step - r->ring_setting), 26) + 'A';
         int x = -1;
         while (result != c) {
             x++;
-            result = r->substitutions[(x + r->step) % 26];
+            result = r->substitutions[mod(x + (r->step - r->ring_setting), 26)];
         }
         return x + 'A';
     }
     else {
-        int raw = r->substitutions[(c - 'A' + r->step) % 26] - 'A';
-        return 'A' + mod(raw - r->step, 26);
+        int raw = r->substitutions[mod(c - 'A' + (r->step - r->ring_setting), 26)] - 'A';
+        return 'A' + mod(raw - (r->step - r->ring_setting), 26);
     }
 }
 
-rotor create_rotor(r_template template, char start_pos) { // Creates a rotor
+rotor create_rotor(r_template template, char start_pos, char ring_setting) { // Creates a rotor
     rotor r = malloc(sizeof(struct rotor_structure)); // TODO: error checking on malloc
     r->notch = template.notch - 'A';
     r->step = start_pos - 'A';
+    r->ring_setting = ring_setting - 'A';
     strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
     return r;
 }

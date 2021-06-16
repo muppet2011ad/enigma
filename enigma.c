@@ -4,7 +4,8 @@
 #include "rotor.h"
 
 void keypress_rotate(rotor rotors[3]);
-char *encode_message(char *message, rotor rotors[3], rotor reflector);
+char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugboard[26]);
+char p_sub(char c, char p[26]);
 
 int main() {
     int num_lines = 0;
@@ -31,14 +32,14 @@ int main() {
 
     free(lines);
 
-    rotor r0 = create_rotor(templates[0], 'A');
-    rotor r1 = create_rotor(templates[1], 'A');
-    rotor r2 = create_rotor(templates[2], 'A');
-    rotor rr = create_rotor(templates[num_lines-1], 'A');
+    rotor r0 = create_rotor(templates[0], 'A', 'B');
+    rotor r1 = create_rotor(templates[1], 'A', 'B');
+    rotor r2 = create_rotor(templates[2], 'A', 'B');
+    rotor rr = create_rotor(templates[num_lines-1], 'A', 'A');
 
     rotor rotors[] = {r0, r1, r2};
 
-    char *result = encode_message("PROGRAMMINGPUZZLES", rotors, rr);
+    char *result = encode_message("AAAAA", rotors, rr, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
     printf("%s\n", result);
 }
@@ -54,13 +55,19 @@ void keypress_rotate(rotor rotors[3]) {
     }
 }
 
-char *encode_message(char *message, rotor rotors[3], rotor reflector) {
+char p_sub(char c, char p[26]) {
+    return p[c - 'A'];
+}
+
+char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugboard[26]) {
     int msg_len = strlen(message);
     char *encoded = malloc(msg_len+1);
     for (int i = 0; i < msg_len; i++) {
         keypress_rotate(rotors);
+        char c = p_sub(message[i], plugboard);
         // Absolutely cursed line of code here but it essentially manages the whole journey from rotor 0 to the reflector and back
-        encoded[i] = r_sub(rotors[0], r_sub(rotors[1], r_sub(rotors[2], r_sub(reflector, r_sub(rotors[2], r_sub(rotors[1], r_sub(rotors[0], message[i], 0), 0), 0), 1), 1), 1), 1);
+        c = r_sub(rotors[0], r_sub(rotors[1], r_sub(rotors[2], r_sub(reflector, r_sub(rotors[2], r_sub(rotors[1], r_sub(rotors[0], c, 0), 0), 0), 1), 1), 1), 1);
+        encoded[i] = p_sub(c, plugboard);
     }
     encoded[msg_len] = '\0';
     return encoded;
