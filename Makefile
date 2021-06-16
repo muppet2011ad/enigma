@@ -1,4 +1,4 @@
-OPTS := -Wall -Wextra -pedantic -std=c11
+OPTS := -Wall -pedantic -std=c11
 
 all: enigma
 
