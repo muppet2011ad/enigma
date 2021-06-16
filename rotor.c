@@ -41,6 +41,7 @@ rotor create_rotor(r_template template, char start_pos, char ring_setting) { // 
     r->notch = template.notch - 'A';
     r->step = start_pos - 'A';
     r->ring_setting = ring_setting - 'A';
+    r->id = template.id;
     strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
     return r;
 }
@@ -51,4 +52,8 @@ void destroy_rotor(rotor r) {
 
 char r_get_position(rotor r) {
     return r->step + 'A';
+}
+
+char r_get_ring_setting(rotor r) {
+    return r->ring_setting + 'A';
 }

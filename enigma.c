@@ -6,7 +6,8 @@
 struct enigma_structure {
     rotor rotors[3];
     rotor reflector;
-    char plugboard[26];
+    char plugboard[26]; // Used to perform substitution
+    char pairs[30]; // Not needed for enigma functionality, but useful to output plugboard config
 };
 
 typedef struct enigma_structure *enigma;
@@ -17,6 +18,7 @@ char p_sub(char c, char p[26]);
 void input(char *string,int length);
 enigma create_engima(FILE *config_file, r_template templates[], int num_templates);
 void destroy_engima(enigma e);
+void display_config(enigma e);
 
 int main() {
     int num_lines = 0;
@@ -34,9 +36,11 @@ int main() {
         ptr = strtok(NULL, " ");
         if (i != num_lines-1) {
             templates[i].notch = *ptr;
+            templates[i].id = i;
         }
         else {
             templates[i].notch = 27;
+            templates[i].id = 0;
         }
         free(lines[i]);
     }
@@ -46,6 +50,8 @@ int main() {
     FILE *config_file = fopen("config", "r");
     enigma e = create_engima(config_file, templates, num_lines);
     fclose(config_file);
+
+    display_config(e);
 
     printf("Enter message to be encoded: ");
     char buffer[BUFFER_SIZE];
@@ -72,6 +78,8 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
     strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26); // Copy in identity plugboard
     // Loops through steckered pairs given in config
     if (config_lines[3] != NULL) {
+        strncpy(e->pairs, config_lines[3], 30);
+        e->pairs[29] = '\0';
         char *ptr = strtok(config_lines[3], " ");
         while (ptr != NULL) {
             e->plugboard[ptr[0] - 'A'] = ptr[1];
@@ -79,6 +87,7 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
             ptr = strtok(NULL, " ");
         }
     }
+    else { e->pairs[0] = '\0'; }
 
     for (int i = 0; i < num_config_lines; i++) {
         free(config_lines[i]);
@@ -93,6 +102,16 @@ void destroy_engima(enigma e) {
     }
     free(e->reflector);
     free(e);
+}
+
+void display_config(enigma e) {
+    char r_id_lookup[8][5] = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"};
+    printf("%12s | %4s | %4s | %4s\n-------------+------+------+-----\n", "Slot", "1", "2", "3");
+    printf("%12s | %4s | %4s | %4s\n", "Rotor", r_id_lookup[e->rotors[0]->id], r_id_lookup[e->rotors[1]->id], r_id_lookup[e->rotors[2]->id]);
+    printf("%12s | %4c | %4c | %4c\n", "Position", r_get_position(e->rotors[0]), r_get_position(e->rotors[1]), r_get_position(e->rotors[2]));
+    printf("%12s | %4c | %4c | %4c\n", "Ringstellung", r_get_ring_setting(e->rotors[0]), r_get_ring_setting(e->rotors[1]), r_get_ring_setting(e->rotors[2]));
+    printf("Plugboard: %s\n", e->pairs);
+    printf("Note that under this numbering system, rotor slots are traversed in ascending order then descending order.\n\n");
 }
 
 void keypress_rotate(rotor rotors[3]) {
