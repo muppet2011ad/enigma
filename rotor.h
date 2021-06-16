@@ -21,6 +21,7 @@ struct rotor_template {
 typedef struct rotor_template r_template;
 
 rotor create_rotor(r_template template, char start_pos, char ring_setting);
+void destroy_rotor(rotor r);
 char r_sub (rotor r, char c, int reflected);
 int r_rotate(rotor r);
 char r_get_position(rotor r);

@@ -16,6 +16,7 @@ char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugb
 char p_sub(char c, char p[26]);
 void input(char *string,int length);
 enigma create_engima(FILE *config_file, r_template templates[], int num_templates);
+void destroy_engima(enigma e);
 
 int main() {
     int num_lines = 0;
@@ -65,6 +66,14 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
     e->reflector = create_rotor(templates[num_templates-1], 'A', 'A');
     strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
     return e;
+}
+
+void destroy_engima(enigma e) {
+    for (int i = 0; i < 3; i++) {
+        free(e->rotors[i]);
+    }
+    free(e->reflector);
+    free(e);
 }
 
 void keypress_rotate(rotor rotors[3]) {

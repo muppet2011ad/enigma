@@ -45,6 +45,10 @@ rotor create_rotor(r_template template, char start_pos, char ring_setting) { // 
     return r;
 }
 
+void destroy_rotor(rotor r) {
+    free(r);
+}
+
 char r_get_position(rotor r) {
     return r->step + 'A';
 }
