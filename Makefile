@@ -2,11 +2,11 @@ OPTS := -Wall -Wextra -pedantic -std=c11
 
 all: enigma
 
-%.o: %.c
-	gcc $(OPTS) -c $< -g -o build/$@
+build/%.o: %.c
+	gcc $(OPTS) -c $< -g -o $@
 
 
-enigma: enigma.o readlines.o rotor.o
+enigma: build/enigma.o build/readlines.o build/rotor.o
 	gcc build/enigma.o build/readlines.o build/rotor.o -o build/enigma
 
 make clean:
