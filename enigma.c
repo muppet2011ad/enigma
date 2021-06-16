@@ -43,7 +43,9 @@ int main() {
 
     free(lines);
 
-    enigma e = create_engima(fopen("config", "r"), templates, num_lines);
+    FILE *config_file = fopen("config", "r");
+    enigma e = create_engima(config_file, templates, num_lines);
+    fclose(config_file);
 
     printf("Enter message to be encoded: ");
     char buffer[BUFFER_SIZE];
@@ -52,6 +54,8 @@ int main() {
     char *result = encode_message(buffer, e->rotors, e->reflector, e->plugboard);
 
     printf("Result: %s\n", result);
+    destroy_engima(e);
+    free(result);
 }
 
 enigma create_engima(FILE *config_file, r_template templates[], int num_templates) {
@@ -65,12 +69,16 @@ enigma create_engima(FILE *config_file, r_template templates[], int num_template
     e->rotors[2] = create_rotor(templates[config_lines[0][4] - '1'], config_lines[1][4], config_lines[2][4]);
     e->reflector = create_rotor(templates[num_templates-1], 'A', 'A');
     strncpy(e->plugboard, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
+    for (int i = 0; i < num_config_lines; i++) {
+        free(config_lines[i]);
+    }
+    free(config_lines);
     return e;
 }
 
 void destroy_engima(enigma e) {
     for (int i = 0; i < 3; i++) {
-        free(e->rotors[i]);
+        destroy_rotor(e->rotors[i]);
     }
     free(e->reflector);
     free(e);
