@@ -10,5 +10,6 @@
 #define LINES_ARR_LEN 8
 
 char **read_lines (FILE* src, char ***lines, int *num_lines, int *lines_arr_size);
+void destroy_lines(char **lines, int num_lines);
 
 #endif

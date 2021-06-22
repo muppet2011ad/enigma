@@ -27,3 +27,10 @@ char **read_lines (FILE* src, char ***lines, int *num_lines, int *lines_arr_size
     }
     return *lines; // Return a pointer to the array
 }
+
+void destroy_lines(char **lines, int num_lines) {
+    for (int i = 0; i < num_lines; i++) {
+        free(lines[i]);
+    }
+    free(lines);
+}
