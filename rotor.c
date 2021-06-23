@@ -2,12 +2,7 @@
 #include "rotor.h"
 #include <string.h>
 
-int mod(int i, int j) {
-    if (i < 0) {
-        i += j;
-    }
-    return i % j;
-}
+#define mod(x, n) ((x % n + n) %n)
 
 int r_rotate(rotor r) {
     int special = 0; // Determines whether rotor 2 rotates if this is rotor 1 or we double step if this is rotor 2
@@ -20,19 +15,15 @@ int r_rotate(rotor r) {
 }
 
 char r_sub (rotor r, char c, int reflected) { // Performs substitution in both directions
+    int offset = r->step - r->ring_setting;
     if (reflected){
-        char result = 'a';
-        c = mod((c - 'A') + (r->step - r->ring_setting), 26) + 'A';
-        int x = -1;
-        while (result != c) {
-            x++;
-            result = r->substitutions[mod(x + (r->step - r->ring_setting), 26)];
-        }
-        return x + 'A';
+        c = mod((c - 'A') + (offset), 26);
+        char raw = r->substitutions[26+c] - 'A';
+        return 'A' + mod(raw - (offset), 26);
     }
     else {
-        int raw = r->substitutions[mod(c - 'A' + (r->step - r->ring_setting), 26)] - 'A';
-        return 'A' + mod(raw - (r->step - r->ring_setting), 26);
+        int raw = r->substitutions[mod(c - 'A' + (offset), 26)] - 'A';
+        return 'A' + mod(raw - (offset), 26);
     }
 }
 
@@ -43,6 +34,9 @@ rotor create_rotor(r_template template, char start_pos, char ring_setting) { // 
     r->ring_setting = ring_setting - 'A';
     r->id = template.id;
     strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
+    for (int i = 0; i < 26; i++) {
+        r->substitutions[r->substitutions[i] - 'A' + 26] = i+'A';
+    }
     return r;
 }
 
