@@ -1,2 +1,8 @@
 .vscode/*
 build/*
+java_computerphile
+*.png
+
+prof_output
+
+gmon.out
