@@ -110,8 +110,14 @@ char *encode_message(char *message, enigma e) {
         keypress_rotate(e->rotors);
         char c = p_sub(message[i], e->plugboard);
         // Absolutely cursed line of code here but it essentially manages the whole journey from rotor 0 to the reflector and back
-        c = r_sub(rotors[0], r_sub(rotors[1], r_sub(rotors[2], r_sub(reflector, r_sub(rotors[2], r_sub(rotors[1], r_sub(rotors[0], c, 0), 0), 0), 1), 1), 1), 1);
-        encoded[i] = p_sub(c, plugboard);
+        char c00 = r_sub(e->rotors[0], c, 0);
+        char c01 = r_sub(e->rotors[1], c00, 0);
+        char c12 = r_sub(e->rotors[2], c01, 0);
+        char c2r = r_sub(e->reflector, c12, 0);
+        char cr2 = r_sub(e->rotors[2], c2r, 1);
+        char c21 = r_sub(e->rotors[1], cr2, 1);
+        char c10 = r_sub(e->rotors[0], c21, 1);
+        encoded[i] = p_sub(c10, e->plugboard);
     }
     encoded[msg_len] = '\0';
     return encoded;
