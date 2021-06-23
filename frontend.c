@@ -17,7 +17,7 @@ int main() {
     char buffer[BUFFER_SIZE];
     input(buffer, BUFFER_SIZE);
 
-    char *result = encode_message(buffer, e->rotors, e->reflector, e->plugboard);
+    char *result = encode_message(buffer, e);
 
     printf("Result: %s\n", result);
     destroy_engima(e);

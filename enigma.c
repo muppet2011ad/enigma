@@ -103,12 +103,12 @@ char p_sub(char c, char p[26]) {
     return p[c - 'A'];
 }
 
-char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugboard[26]) {
+char *encode_message(char *message, enigma e) {
     int msg_len = strlen(message);
     char *encoded = malloc(msg_len+1);
     for (int i = 0; i < msg_len; i++) {
-        keypress_rotate(rotors);
-        char c = p_sub(message[i], plugboard);
+        keypress_rotate(e->rotors);
+        char c = p_sub(message[i], e->plugboard);
         // Absolutely cursed line of code here but it essentially manages the whole journey from rotor 0 to the reflector and back
         c = r_sub(rotors[0], r_sub(rotors[1], r_sub(rotors[2], r_sub(reflector, r_sub(rotors[2], r_sub(rotors[1], r_sub(rotors[0], c, 0), 0), 0), 1), 1), 1), 1);
         encoded[i] = p_sub(c, plugboard);

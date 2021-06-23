@@ -16,7 +16,7 @@ struct enigma_structure {
 typedef struct enigma_structure *enigma;
 
 void keypress_rotate(rotor rotors[3]);
-char *encode_message(char *message, rotor rotors[3], rotor reflector, char plugboard[26]);
+char *encode_message(char *message, enigma e);
 char p_sub(char c, char p[26]);
 void input(char *string,int length);
 enigma create_enigma_from_file(FILE *config_file, r_template templates[], int num_templates);
