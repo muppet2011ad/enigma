@@ -110,14 +110,14 @@ char *encode_message(char *message, enigma e) {
         keypress_rotate(e->rotors);
         char c = p_sub(message[i], e->plugboard);
         // Absolutely cursed line of code here but it essentially manages the whole journey from rotor 0 to the reflector and back
-        char c00 = r_sub(e->rotors[0], c, 0);
-        char c01 = r_sub(e->rotors[1], c00, 0);
-        char c12 = r_sub(e->rotors[2], c01, 0);
-        char c2r = r_sub(e->reflector, c12, 0);
-        char cr2 = r_sub(e->rotors[2], c2r, 1);
-        char c21 = r_sub(e->rotors[1], cr2, 1);
-        char c10 = r_sub(e->rotors[0], c21, 1);
-        encoded[i] = p_sub(c10, e->plugboard);
+        char c00 = r_sub_no_reflect(e->rotors[0], c - 'A');
+        char c01 = r_sub_no_reflect(e->rotors[1], c00);
+        char c12 = r_sub_no_reflect(e->rotors[2], c01);
+        char c2r = r_sub_no_reflect(e->reflector, c12);
+        char cr2 = r_sub_reflect(e->rotors[2], c2r);
+        char c21 = r_sub_reflect(e->rotors[1], cr2);
+        char c10 = r_sub_reflect(e->rotors[0], c21);
+        encoded[i] = p_sub(c10 + 'A', e->plugboard);
     }
     encoded[msg_len] = '\0';
     return encoded;
@@ -138,4 +138,33 @@ void input(char *string,int length) {
         }
     }
     *string = '\0';
+}
+
+char *read_in_line(FILE *input_file) {
+    int arr_size = LINES_ARR_LEN;
+    int num_lines = 0;
+    char **lines = calloc(LINES_ARR_LEN, sizeof(char*));
+    read_lines(input_file, &lines, &num_lines, &arr_size);
+    char *combined_string = malloc(BUFFER_SIZE*num_lines);
+    int x = 0;
+    for (int i = 0; i < num_lines; i++) {
+        strcpy(&(combined_string[x]), lines[i]);
+        x += strlen(lines[i]);
+    }
+    char *final_string = malloc(strlen(combined_string)+1);
+    x = 0;
+    for (int i = 0; i < strlen(combined_string); i++) {
+        if (islower(combined_string[i])) {
+            combined_string[i] = toupper(combined_string[i]);
+        }
+        if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ", combined_string[i])) {
+            continue;
+        }
+        final_string[x] = combined_string[i];
+        x++;
+    }
+    final_string[strlen(combined_string)] = '\0';
+    destroy_lines(lines, num_lines);
+    free(combined_string);
+    return final_string;
 }

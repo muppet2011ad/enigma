@@ -5,6 +5,7 @@
 #include "rotor.h"
 #include "readlines.h"
 #include <stdio.h>
+#include <ctype.h>
 
 struct enigma_structure {
     rotor rotors[3];
@@ -24,5 +25,6 @@ void destroy_engima(enigma e);
 void display_config(enigma e);
 r_template *load_templates_from_file(FILE* f, int *num_rotors);
 enigma create_enigma(r_template rotors[3], r_template reflector, char positions[3], char ring_settings[3], char plugboard[27], char pairs[30]);
+char *read_in_line(FILE *input_file);
 
 #endif

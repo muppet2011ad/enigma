@@ -11,20 +11,25 @@ int r_rotate(rotor r) {
         special = 1;
     }
     r->step = (r->step + 1) % 26;
+    r->offset = (r->offset + 1) % 26;
     return special;
 }
 
 char r_sub (rotor r, char c, int reflected) { // Performs substitution in both directions
-    int offset = r->step - r->ring_setting;
     if (reflected){
-        c = mod((c - 'A') + (offset), 26);
-        char raw = r->substitutions[26+c] - 'A';
-        return 'A' + mod(raw - (offset), 26);
+        return r_sub_reflect(r, c);
     }
     else {
-        int raw = r->substitutions[mod(c - 'A' + (offset), 26)] - 'A';
-        return 'A' + mod(raw - (offset), 26);
+        return r_sub_no_reflect(r, c);
     }
+}
+
+char r_sub_no_reflect(rotor r, char c) {
+    return mod(r->substitutions[(c + r->offset) % 26] - r->offset, 26);
+}
+
+char r_sub_reflect(rotor r, char c) {
+    return mod(r->substitutions[26 + ((c + r->offset) % 26)] - (r->offset), 26);
 }
 
 rotor create_rotor(r_template template, char start_pos, char ring_setting) { // Creates a rotor
@@ -32,10 +37,11 @@ rotor create_rotor(r_template template, char start_pos, char ring_setting) { // 
     r->notch = template.notch - 'A';
     r->step = start_pos - 'A';
     r->ring_setting = ring_setting - 'A';
+    r->offset = mod(r->step - r->ring_setting, 26);
     r->id = template.id;
-    strncpy(r->substitutions, template.substitutions, 26); // Copies substitutions in
     for (int i = 0; i < 26; i++) {
-        r->substitutions[r->substitutions[i] - 'A' + 26] = i+'A';
+        r->substitutions[i] = template.substitutions[i] - 'A';
+        r->substitutions[r->substitutions[i] + 26] = i;
     }
     return r;
 }
