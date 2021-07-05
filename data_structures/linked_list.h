@@ -1,3 +1,7 @@
+#ifndef linked_list_h
+
+#define linked_list_h
+
 #include <stdlib.h>
 
 typedef struct node_structure *ll_node;
@@ -28,3 +32,5 @@ void remove_index_from_linked_list(linked_list l, int index);
 void **linked_list_to_array(linked_list l);
 void destroy_linked_list(linked_list l);
 void destroy_node(ll_node n);
+
+#endif
