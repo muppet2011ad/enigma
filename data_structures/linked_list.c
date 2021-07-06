@@ -57,6 +57,7 @@ int add_at_index_to_linked_list(linked_list l, void *data, int index) {
             return 0;
         }
     }
+    return 0;
 }
 
 ll_node find_in_linked_list(linked_list l, void *search_key, int (*eq_func)(void*, void*)) {
