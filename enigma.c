@@ -123,8 +123,8 @@ char *encode_message(char *message, enigma e) {
     return encoded;
 }
 
-void input(char *string,int length) {
-    fgets(string,length,stdin);
+void input(char *string,int length, FILE* src) {
+    fgets(string,length,src);
     int i = 0;
     while(*string != '\n') {
         i++;
