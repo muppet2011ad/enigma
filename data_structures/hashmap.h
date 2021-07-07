@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include "linked_list.h"
+#include <string.h>
 
 struct kv_pair_structure {
     void *key;
@@ -28,11 +29,11 @@ typedef struct hashmap_structure *hashmap;
 
 hashmap new_hashmap(int num_buckets, double max_load_factor, int (*key_equality_func)(void*, void*), int (*hash_function)(void*, int));
 int add_to_hashmap(hashmap h, void *key, size_t key_length, void *value);
-int is_key_in_hashmap(hashmap h, void *key, int key_length);
-void *get_value_from_hashmap(hashmap h, void *key, int key_length);
-void remove_from_hashmap(hashmap h, void *key, int key_length);
+int is_key_in_hashmap(hashmap h, void *key, size_t key_length);
+void *get_value_from_hashmap(hashmap h, void *key, size_t key_length);
+void remove_from_hashmap(hashmap h, void *key, size_t key_length);
 kv_pair *hashmap_to_array (hashmap h);
 kv_pair create_virtual_pair(void *key);
-void destroy_hashmap(hashmap h);
+void destroy_hashmap(hashmap h, short destroy_data);
 
 #endif

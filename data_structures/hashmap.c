@@ -51,6 +51,7 @@ int add_to_hashmap(hashmap h, void *key, size_t key_length, void *value) {
     kv_pair key_pair = create_virtual_pair(key);
     if (find_in_linked_list(h->buckets[hash], key_pair, h->key_eq_func)) {
         free(key_pair);
+        free(pair);
         return 0;
     }
     free(key_pair);
@@ -62,7 +63,7 @@ int add_to_hashmap(hashmap h, void *key, size_t key_length, void *value) {
     return 1;
 }
 
-int is_key_in_hashmap(hashmap h, void *key, int key_length) {
+int is_key_in_hashmap(hashmap h, void *key, size_t key_length) {
     int hash = h->hash_function(key, key_length) % h->num_buckets;
     if (h->buckets[hash]) {
         kv_pair key_pair = create_virtual_pair(key);
@@ -75,7 +76,7 @@ int is_key_in_hashmap(hashmap h, void *key, int key_length) {
     }
 }
 
-void *get_value_from_hashmap(hashmap h, void *key, int key_length) {
+void *get_value_from_hashmap(hashmap h, void *key, size_t key_length) {
     int hash = h->hash_function(key, key_length) % h->num_buckets;
     if (h->buckets[hash]) {
         kv_pair key_pair = create_virtual_pair(key);
@@ -91,7 +92,7 @@ void *get_value_from_hashmap(hashmap h, void *key, int key_length) {
     return NULL;
 }
 
-void remove_from_hashmap(hashmap h, void *key, int key_length) {
+void remove_from_hashmap(hashmap h, void *key, size_t key_length) {
     int hash = h->hash_function(key, key_length) % h->num_buckets;
     if (h->buckets[hash]) {
         kv_pair key_pair = create_virtual_pair(key);
@@ -125,7 +126,15 @@ kv_pair create_virtual_pair(void *key) {
     return p;
 }
 
-void destroy_hashmap(hashmap h) {
+void destroy_hashmap(hashmap h, short destroy_data) {
+    if (destroy_data) {
+        kv_pair *members = hashmap_to_array(h);
+        for (int i = 0; i < h->nmeb; i++) {
+            free(members[i]->key);
+            free(members[i]->val);
+        }
+        free(members);
+    }
     for (int i = 0; i < h->num_buckets; i++) {
         if (h->buckets[i]) {
             destroy_linked_list(h->buckets[i]);
