@@ -10,7 +10,7 @@
 
 #define IOC_ENGLISH_TEXT 1.73
 #define ROTORS 5
-#define BEST_ROTORS_COUNT 1
+#define BEST_ROTORS_COUNT 10
 #define MAX_HASHMAP_LOAD_FACTOR 0.7
 #define NUM_PLUGS 5
 
@@ -54,15 +54,15 @@ void print_hashmap(hashmap h) {
 }
 
 int main() {
-    FILE *bigrams_file = fopen("data/bigrams", "r");
+    FILE *bigrams_file = fopen("data/bigrams-cphile", "r");
     hashmap bigrams = load_ngram_scores(bigrams_file);
     fclose(bigrams_file);
 
-    FILE *trigrams_file = fopen("data/trigrams", "r");
+    FILE *trigrams_file = fopen("data/trigrams-cphile", "r");
     hashmap trigrams = load_ngram_scores(trigrams_file);
     fclose(trigrams_file);
 
-    FILE *quadgrams_file = fopen("data/quadgrams", "r");
+    FILE *quadgrams_file = fopen("data/quadgrams-cphile", "r");
     hashmap quadgrams = load_ngram_scores(quadgrams_file);
     fclose(quadgrams_file);
 
@@ -72,7 +72,7 @@ int main() {
     FILE* templates_file = fopen("data/rotors", "r");
     r_template *templates = load_templates_from_file(templates_file, &num_rotors);
     fclose(templates_file);
-    FILE* source_file = fopen("data/example", "r");
+    FILE* source_file = fopen("data/secret", "r");
     char *contents = read_in_line(source_file);
     fclose(source_file);
 
@@ -132,7 +132,7 @@ int main() {
         rs_scores[i].score = -1e8;
     }
 
-    // This was my original approach of cracking all ring settings at once
+    //This was my original approach of cracking all ring settings at once
     for (int i = 0; i < BEST_ROTORS_COUNT; i++) {
         rotor_config_and_score best = {0};
         best.score = -1e8;
@@ -168,7 +168,6 @@ int main() {
     //     best.score = -1e8;
     //     r_template rotors[3] = {templates[rp_scores[i].rotors[0]], templates[rp_scores[i].rotors[1]], templates[rp_scores[i].rotors[2]]};
     //     char partial_config[3] = {'A', 'A', 'A'};
-    //     char partial_positions[3];
     //     double final_score;
     //     for (int j = 0; j < 3; j++) {
     //         double best_score = -1e8;
@@ -179,12 +178,12 @@ int main() {
     //             ring_settings[j] = x + 'A';
     //             enigma e = create_enigma(rotors, templates[num_rotors-1], rp_scores[i].positions, ring_settings, plugboard, pairs);
     //             char *result = encode_message(contents, e);
-    //             double score = ngram_score(result, trigrams, 3);
+    //             double score = ngram_score(result, bigrams, 2);
     //             //double score = 1/fabs(ioc(result) - IOC_ENGLISH_TEXT);
     //             free(result);
     //             if (score > best_score) {
     //                 best_score = score;
-    //                 best_ring_setting = x + 'A';
+    //                 best_ring_setting = ring_settings[j];
     //             }
     //             destroy_engima(e);
     //         }
@@ -207,39 +206,72 @@ int main() {
                                                                                                 rs_scores[0].ring_settings[0], rs_scores[0].ring_settings[1], rs_scores[0].ring_settings[2],
                                                                                                 rs_scores[0].score);
 
-    rotor_config_and_score final_config = rs_scores[0];
+    rotor_config_and_score config = rs_scores[0];
     free(rs_scores);
+
+    r_template rotors[3] = {templates[config.rotors[0]], templates[config.rotors[1]], templates[config.rotors[2]]};
+
+    // Add this step to try and deal with positions and ring settings being incorrectly set
+    rotor_config_and_score final_config = {0};
+    final_config.score = -1e8;
+    memcpy(final_config.rotors, config.rotors, 3*sizeof(int));
+    memcpy(final_config.plugboard, config.plugboard, 27);
+    memcpy(final_config.pairs, config.pairs, 30);
+
+    for (int i = 0; i < 26; i++) {
+        for (int j = -1; j < 2; j+=2) {
+            char positions[3];
+            char ring_settings[3];
+            memcpy(positions, config.positions, 3);
+            memcpy(ring_settings, config.ring_settings, 3);
+            for (int x = 0; x < 3; x++) {
+                positions[x] = mod(positions[x] + i, 26);
+                ring_settings[x] = mod(ring_settings[x] + (j*i), 26);
+            }
+            enigma e = create_enigma(rotors, templates[num_rotors-1], positions, ring_settings, plugboard, pairs);
+            char *result = encode_message(contents, e);
+            destroy_engima(e);
+            double score = ngram_score(result, trigrams, 3);
+            if (score > final_config.score) {
+                final_config.score = score;
+                memcpy(final_config.positions, positions, 3);
+                memcpy(final_config.ring_settings, ring_settings, 3);
+            }
+        }
+    }
 
     // Now it's time to try and conquer the plugboard with the power of quadgrams
 
     //memcpy(final_config.positions, "ZDV", 3);
     //memcpy(final_config.ring_settings, "XDA", 3);
 
-    r_template rotors[3] = {templates[final_config.rotors[0]], templates[final_config.rotors[1]], templates[final_config.rotors[2]]};
+    
     for (int i = 0; i < NUM_PLUGS; i++) {
         char best_pair[3] = "";
         double best_score = -1e8;
         char temp_plugboard[27];
-        strncpy(temp_plugboard, plugboard, 27);
         for (int x = 0; x < 26; x++) {
             char a = x + 'A';
             if (!strchr(pairs, a)) {
                 for (int y = x+1; y < 26; y++) {
                     char b = y + 'A';
                     if (!strchr(pairs, b)) {
+                        strncpy(temp_plugboard, plugboard, 27);
                         temp_plugboard[x] = b;
                         temp_plugboard[y] = a;
                         enigma e = create_enigma(rotors, templates[num_rotors-1], final_config.positions, final_config.ring_settings, temp_plugboard, pairs);
                         char *result = encode_message(contents, e);
                         destroy_engima(e);
                         double score = ngram_score(result, quadgrams, 4);
-                        free(result);
+                        //free(result);
                         if (score > best_score) {
                             best_score = score;
                             best_pair[0] = a;
                             best_pair[1] = b;
                             best_pair[2] = ' ';
+                            //printf("New best pair %c%c with score %lf\nResult: %s\n\n", a, b, score, result);
                         }
+                        free(result);
                     }
                 }
             }
@@ -248,7 +280,10 @@ int main() {
         plugboard[best_pair[1] - 'A'] = best_pair[0];
         memcpy(&pairs[3*i], best_pair, 3);
     }
-    pairs[3*(NUM_PLUGS)-1] = '\0';
+
+    #if NUM_PLUGS != 0
+        pairs[3*(NUM_PLUGS)-1] = '\0';
+    #endif
 
     // Now it's just time to output results.
     enigma e = create_enigma(rotors, templates[num_rotors-1], final_config.positions, final_config.ring_settings, plugboard, pairs);
@@ -308,11 +343,13 @@ double ngram_score(char *string, hashmap ngrams, short n) {
         double this_ngram_score = 0;
         void *result = get_value_from_hashmap(ngrams, key, n);
         if (result) {
-            this_ngram_score = log(*(double*) result);
+            //this_ngram_score = log(*(double*) result);
             //this_ngram_score = pow(*(double*) result, (double) n);
+            this_ngram_score = *(double*) result;
         } 
         else {
-            this_ngram_score = log((double) 1/ngrams->nmeb);
+            //this_ngram_score = log((double) 1/ngrams->nmeb);
+            this_ngram_score = -10;
         }
         final_score += this_ngram_score;
     }
@@ -321,10 +358,10 @@ double ngram_score(char *string, hashmap ngrams, short n) {
 
 hashmap load_ngram_scores(FILE *f) {
     char *input_buffer = calloc(64, sizeof(char));
-    linked_list ngrams_list = new_linked_list();
-    linked_list frequencies_list = new_linked_list();
+    //linked_list ngrams_list = new_linked_list();
+    //linked_list frequencies_list = new_linked_list();
     hashmap h = new_hashmap(500, MAX_HASHMAP_LOAD_FACTOR, string_equality, simple_hash);
-    unsigned long combined_frequency = 0;
+    //unsigned long combined_frequency = 0;
     while (!feof(f)) {
         char* result = fgets(input_buffer, 64, f);
         if (!result) {
@@ -334,30 +371,37 @@ hashmap load_ngram_scores(FILE *f) {
             break;
         }
         char *new_ngram = calloc(8, sizeof(char));
-        int *new_frequency = malloc(sizeof(int));
-        sscanf(input_buffer, "%7s %d", new_ngram, new_frequency);
-        combined_frequency += *new_frequency;
-        add_to_linked_list(ngrams_list, new_ngram);
-        add_to_linked_list(frequencies_list, new_frequency);
-    }
-    free(input_buffer);
-    char **ngrams = (char**) linked_list_to_array(ngrams_list);
-    int **frequencies = (int**) linked_list_to_array(frequencies_list);
-    for (int i = 0; i < ngrams_list->length; i++) {
-        char *key = malloc(8);
-        strncpy(key, ngrams[i], 8);
-        double *val = malloc(sizeof(double));
-        *val = (double)*frequencies[i]/combined_frequency;
-        int succ = add_to_hashmap(h, key, strlen(key), val);
+        //int *new_frequency = malloc(sizeof(int));
+        double *new_score = malloc(sizeof(double));
+        sscanf(input_buffer, "%7s %lf", new_ngram, new_score);
+        //combined_frequency += *new_frequency;
+        //add_to_linked_list(ngrams_list, new_ngram);
+        //add_to_linked_list(frequencies_list, new_frequency);
+        int succ = add_to_hashmap(h, new_ngram, strlen(new_ngram), new_score);
         if (!succ) {
-            fprintf(stderr, "Could not add key %s with value %f to hashmap.\n\n", key, *val);
-            free(key);
-            free(val);
+            fprintf(stderr, "Could not add key %s with value %f to hashmap.\n\n", new_ngram, *new_score);
+            free(new_ngram);
+            free(new_score);
         }
     }
-    free(ngrams);
-    free(frequencies);
-    destroy_linked_list(ngrams_list);
-    destroy_linked_list(frequencies_list);
+    free(input_buffer);
+    // char **ngrams = (char**) linked_list_to_array(ngrams_list);
+    // int **frequencies = (int**) linked_list_to_array(frequencies_list);
+    // for (int i = 0; i < ngrams_list->length; i++) {
+    //     char *key = malloc(8);
+    //     strncpy(key, ngrams[i], 8);
+    //     double *val = malloc(sizeof(double));
+    //     *val = (double)*frequencies[i]/combined_frequency;
+    //     int succ = add_to_hashmap(h, key, strlen(key), val);
+    //     if (!succ) {
+    //         fprintf(stderr, "Could not add key %s with value %f to hashmap.\n\n", key, *val);
+    //         free(key);
+    //         free(val);
+    //     }
+    // }
+    // free(ngrams);
+    // free(frequencies);
+    // destroy_linked_list(ngrams_list);
+    // destroy_linked_list(frequencies_list);
     return h;
 }
