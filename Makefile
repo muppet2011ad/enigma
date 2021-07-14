@@ -16,10 +16,10 @@ frontend: build/libenigma.so
 	gcc -Lbuild -Wl,-rpath=build -O3 -o build/enigma frontend.c -lenigma
 
 cracker_debug: build/libenigma.so build/libdatastructures.so
-	gcc -Lbuild -Wl,-rpath=build -pg -g -o build/cracker cracker.c -lenigma -ldatastructures -lm
+	gcc -Lbuild -Wl,-rpath=build -pg -g -o build/cracker cracker.c -lenigma -ldatastructures -lm -lpthread
 
 fastcracker: build/libenigma.so build/libdatastructures.so
-	gcc -Lbuild -Wl,-rpath=build -O3 -o build/fastcracker cracker.c -lenigma -ldatastructures -lm
+	gcc -Lbuild -Wl,-rpath=build -O3 -o build/fastcracker cracker.c -lenigma -ldatastructures -lm -lpthread
 
 make clean:
 	rm -f build/*.o build/*.so build/data_structures/*.o build/enigma build/cracker build/fastcracker

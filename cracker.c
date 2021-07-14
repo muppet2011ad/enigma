@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <pthread.h>
 #include "enigma.h"
 #include "data_structures.h"
 
@@ -13,6 +14,7 @@
 #define BEST_ROTORS_COUNT 10
 #define MAX_HASHMAP_LOAD_FACTOR 0.7
 #define NUM_PLUGS 5
+#define MAX_THREADS 12
 
 struct rotor_config_and_score_structure {
     int rotors[3];
@@ -25,11 +27,27 @@ struct rotor_config_and_score_structure {
 
 typedef struct rotor_config_and_score_structure rotor_config_and_score;
 
+struct enigma_thread_job_args_structure {
+    rotor_config_and_score config;
+    r_template *templates;
+    int num_rotors;
+    char *text;
+    hashmap bigrams;
+    hashmap trigrams;
+    hashmap quadgrams;
+};
+
+typedef struct enigma_thread_job_args_structure *enigma_thread_job_args;
+
 double ioc(char *text);
 char *read_in_line(FILE *input_file);
 void handle_new_score(rotor_config_and_score *best_list, int list_length, rotor_config_and_score new_score);
 hashmap load_ngram_scores(FILE *f);
 double ngram_score(char *string, hashmap ngrams, short n);
+void multithread_jobs(void *job(void*), void *args[], int num_jobs, void *results[], int max_threads);
+void *evaluate_rotor_config(void *a);
+void *evaluate_ring_settings(void *a);
+void destroy_arr_of_ptrs(void **arr, int length);
 
 int string_equality(void *a, void *b) {
     return strcmp((char*) ((kv_pair) a)->key, (char*) ((kv_pair) b)->key) == 0;
@@ -88,40 +106,39 @@ int main() {
     char ring_settings[3] = "AAA";
     char plugboard[27] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     char pairs[30] = "\0";
+
+    // First pick rotors and their positions
+    int num_rotor_jobs = (ROTORS)*(ROTORS-1)*(ROTORS-2); // Calculate total number of jobs
+    enigma_thread_job_args *rotor_args = calloc(num_rotor_jobs, sizeof(enigma_thread_job_args)); // Allocate memory to store pointers to argument structs
+
+    // Loop creates and populates structs with arguments for each thread
+    int x = 0;
     for (int i = 0; i < num_rotors-1; i++) {
         for (int j = 0; j < num_rotors-1; j++) {
             if (i == j) { continue; }
             for (int k = 0; k < num_rotors-1; k++) {
                 if (j == k || i == k) { continue; }
-                printf("%5s %5s %5s\n", r_id_lookup[i], r_id_lookup[j], r_id_lookup[k]);
-                for (int x = 0; x < 26; x++) {
-                    for (int y = 0; y < 26; y++) {
-                        for (int z = 0; z < 26; z++) {
-                            r_template rotors[3] = {templates[i], templates[j], templates[k]};
-                            char positions[3] = {x + 'A', y + 'A', z + 'A'};
-                            //char ring_settings[3] = {mod('A' - x, 26) + 'A', mod('A' - y, 26) + 'A', mod('A' - z, 26) + 'A'};
-                            enigma e = create_enigma(rotors, templates[num_rotors-1], positions, ring_settings, plugboard, pairs);
-                            char *result = encode_message(contents, e);
-                            double score = 1/fabs(ioc(result) - IOC_ENGLISH_TEXT);
-                            //double score = ngram_score(result, bigrams, 2);
-                            free(result);
-                            rotor_config_and_score rs;
-                            rs.rotors[0] = i;
-                            rs.rotors[1] = j;
-                            rs.rotors[2] = k;
-                            strncpy(rs.ring_settings, ring_settings, 3);
-                            strncpy(rs.positions, positions, 3);
-                            strcpy(rs.plugboard, plugboard);
-                            strcpy(rs.pairs, pairs);
-                            rs.score = score;
-                            handle_new_score(rp_scores, BEST_ROTORS_COUNT, rs);
-                            destroy_engima(e);
-                        }
-                    }
-                }
+                rotor_args[x] = calloc(1, sizeof(struct enigma_thread_job_args_structure));
+                //printf("%5s %5s %5s\n", r_id_lookup[i], r_id_lookup[j], r_id_lookup[k]);
+                int rotors[3] = {i, j, k};
+                memcpy(rotor_args[x]->config.rotors, rotors, 3*sizeof(int));
+                rotor_args[x]->num_rotors = num_rotors;
+                rotor_args[x]->templates = templates;
+                rotor_args[x]->text = contents;
+                x++;
             }
         }
     }
+
+    printf("Trialling rotor combinations...\n");
+
+    rotor_config_and_score **results = calloc(num_rotor_jobs, sizeof(void*)); // Array to store results of calculations
+    multithread_jobs(evaluate_rotor_config, (void*) rotor_args, num_rotor_jobs, (void*) results, MAX_THREADS); // Perform multithreading
+    destroy_arr_of_ptrs((void**) rotor_args, num_rotor_jobs); // Clear argument data
+    for (int i = 0; i < num_rotor_jobs; i++) {
+        handle_new_score(rp_scores, BEST_ROTORS_COUNT, *(results[i])); // Sort results into top 10 list
+    }
+    destroy_arr_of_ptrs((void**) results, num_rotor_jobs); // Clear results data
 
     for (int i = 0; i < BEST_ROTORS_COUNT; i++) {
         printf("%2d: %5s %5s %5s in position %c %c %c with score %f\n\n", i+1, r_id_lookup[rp_scores[i].rotors[0]], r_id_lookup[rp_scores[i].rotors[1]], r_id_lookup[rp_scores[i].rotors[2]], rp_scores[i].positions[0], rp_scores[i].positions[1], rp_scores[i].positions[2], rp_scores[i].score);
@@ -132,74 +149,28 @@ int main() {
         rs_scores[i].score = -1e8;
     }
 
-    //This was my original approach of cracking all ring settings at once
+    enigma_thread_job_args *ring_setting_args = calloc(BEST_ROTORS_COUNT, sizeof(enigma_thread_job_args));
     for (int i = 0; i < BEST_ROTORS_COUNT; i++) {
-        rotor_config_and_score best = {0};
-        best.score = -1e8;
-        r_template rotors[3] = {templates[rp_scores[i].rotors[0]], templates[rp_scores[i].rotors[1]], templates[rp_scores[i].rotors[2]]};
-        for (int x = 0; x < 26; x++) {
-            for (int y = 0; y < 26; y++) {
-                for (int z = 0; z < 26; z++) {
-                    char ring_settings[3] = {x + 'A', y + 'A', z + 'A'};
-                    enigma e = create_enigma(rotors, templates[num_rotors-1], rp_scores[i].positions, ring_settings, plugboard, pairs);
-                    char *result = encode_message(contents, e);
-                    double score = ngram_score(result, bigrams, 2);
-                    free(result);
-                    if (score > best.score) {
-                        memcpy(&best.rotors, &rp_scores[i].rotors, 3*sizeof(int));
-                        strncpy(best.ring_settings, ring_settings, 3);
-                        strncpy(best.positions, rp_scores[i].positions, 3);
-                        strcpy(best.plugboard, plugboard);
-                        strcpy(best.pairs, pairs);
-                        best.score = score;
-                    }
-                    destroy_engima(e);
-                }
-            }
-        }
-        handle_new_score(rs_scores, BEST_ROTORS_COUNT, best);
+        ring_setting_args[i] = calloc(1, sizeof(struct enigma_thread_job_args_structure));
+        memcpy(&(ring_setting_args[i]->config), &(rp_scores[i]), sizeof(rotor_config_and_score));
+        ring_setting_args[i]->num_rotors = num_rotors;
+        ring_setting_args[i]->templates = templates;
+        ring_setting_args[i]->text = contents;
+        ring_setting_args[i]->bigrams = bigrams;
+        ring_setting_args[i]->trigrams = trigrams;
+        ring_setting_args[i]->quadgrams = quadgrams;
     }
+
+    printf("Optimising ring settings...\n");
+    results = calloc(BEST_ROTORS_COUNT, sizeof(void*));
+    multithread_jobs(evaluate_ring_settings, (void*) ring_setting_args, BEST_ROTORS_COUNT, (void*) results, MAX_THREADS);
+    destroy_arr_of_ptrs((void**) ring_setting_args, BEST_ROTORS_COUNT);
+    for (int i = 0; i < BEST_ROTORS_COUNT; i++) {
+        handle_new_score(rs_scores, BEST_ROTORS_COUNT, *(results[i]));
+    }
+    destroy_arr_of_ptrs((void**) results, BEST_ROTORS_COUNT);
+
     free(rp_scores);
-
-    // Will now implement computerphile approach of doing one at a time
-
-    // for (int i = 0; i < BEST_ROTORS_COUNT; i++) {
-    //     rotor_config_and_score best = {0};
-    //     best.score = -1e8;
-    //     r_template rotors[3] = {templates[rp_scores[i].rotors[0]], templates[rp_scores[i].rotors[1]], templates[rp_scores[i].rotors[2]]};
-    //     char partial_config[3] = {'A', 'A', 'A'};
-    //     double final_score;
-    //     for (int j = 0; j < 3; j++) {
-    //         double best_score = -1e8;
-    //         char best_ring_setting = 'A';
-    //         for (int x = 0; x < 26; x++) {
-    //             char ring_settings[3];
-    //             memcpy(ring_settings, partial_config, 3);
-    //             ring_settings[j] = x + 'A';
-    //             enigma e = create_enigma(rotors, templates[num_rotors-1], rp_scores[i].positions, ring_settings, plugboard, pairs);
-    //             char *result = encode_message(contents, e);
-    //             double score = ngram_score(result, bigrams, 2);
-    //             //double score = 1/fabs(ioc(result) - IOC_ENGLISH_TEXT);
-    //             free(result);
-    //             if (score > best_score) {
-    //                 best_score = score;
-    //                 best_ring_setting = ring_settings[j];
-    //             }
-    //             destroy_engima(e);
-    //         }
-    //         partial_config[j] = best_ring_setting;
-    //         if (j == 2) {
-    //             final_score = best_score;
-    //         }
-    //     }
-    //     memcpy(&best.rotors, &rp_scores[i].rotors, 3*sizeof(int));
-    //     strncpy(best.ring_settings, partial_config, 3);
-    //     strncpy(best.positions, rp_scores[i].positions, 3);
-    //     strcpy(best.plugboard, plugboard);
-    //     strcpy(best.pairs, pairs);
-    //     best.score = final_score;
-    //     handle_new_score(rs_scores, BEST_ROTORS_COUNT, best);
-    // }
 
     printf("Best: %5s %5s %5s in position %c %c %c and ring setting %c %c %c with score %f\n\n",  r_id_lookup[rs_scores[0].rotors[0]], r_id_lookup[rs_scores[0].rotors[1]], r_id_lookup[rs_scores[0].rotors[2]],
                                                                                                 rs_scores[0].positions[0], rs_scores[0].positions[1], rs_scores[0].positions[2],
@@ -256,6 +227,8 @@ int main() {
         pairs[3*(NUM_PLUGS)-1] = '\0';
     #endif
 
+    printf("Plugboard solution: %s\n\nPerforming final tweak for rotor settings...\n\n", plugboard);
+
     // Add this step to try and deal with positions and ring settings being incorrectly set
     rotor_config_and_score final_config = {0};
     final_config.score = -1e8;
@@ -303,6 +276,73 @@ int main() {
 
     free(contents);
     free(templates);
+}
+
+void *evaluate_rotor_config(void *a) {
+    enigma_thread_job_args args = (enigma_thread_job_args) a;
+    r_template rotors[3] = {args->templates[args->config.rotors[0]], args->templates[args->config.rotors[1]], args->templates[args->config.rotors[2]]};
+    char r_id_lookup[8][5] = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"};
+    char ring_settings[3] = "AAA";
+    char plugboard[27] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    char pairs[30] = "\0";
+    rotor_config_and_score *rs = calloc(sizeof(rotor_config_and_score), 1);
+    rs->score = -1e8;
+    memcpy(rs->rotors, args->config.rotors, 3*sizeof(int));
+    strncpy(rs->ring_settings, ring_settings, 3);
+    strcpy(rs->plugboard, plugboard);
+    strcpy(rs->pairs, pairs);
+    printf("%5s %5s %5s\n", r_id_lookup[args->config.rotors[0]], r_id_lookup[args->config.rotors[1]], r_id_lookup[args->config.rotors[2]]);
+    for (int x = 0; x < 26; x++) {
+        for (int y = 0; y < 26; y++) {
+            for (int z = 0; z < 26; z++) {
+                char positions[3] = {x + 'A', y + 'A', z + 'A'};
+                enigma e = create_enigma(rotors, args->templates[args->num_rotors-1], positions, ring_settings, plugboard, pairs);
+                char *result = encode_message(args->text, e);
+                destroy_engima(e);
+                double score = 1/fabs(ioc(result) - IOC_ENGLISH_TEXT);
+                //double score = ngram_score(result, bigrams, 2);
+                free(result);
+                if (score > rs->score) {
+                    strncpy(rs->positions, positions, 3);
+                    rs->score = score;
+                }
+            }
+        }
+    }
+    pthread_exit((void*) rs);
+    return (void*) rs;
+}
+
+void *evaluate_ring_settings(void *a) {
+    enigma_thread_job_args args = (enigma_thread_job_args) a;
+    r_template rotors[3] = {args->templates[args->config.rotors[0]], args->templates[args->config.rotors[1]], args->templates[args->config.rotors[2]]};
+    char r_id_lookup[8][5] = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"};
+    char plugboard[27] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    char pairs[30] = "\0";
+    rotor_config_and_score *rs = calloc(sizeof(rotor_config_and_score), 1);
+    rs->score = -1e8;
+    memcpy(rs->rotors, args->config.rotors, 3*sizeof(int));
+    strncpy(rs->positions, args->config.positions, 3);
+    strcpy(rs->plugboard, plugboard);
+    strcpy(rs->pairs, pairs);
+    for (int x = 0; x < 26; x++) {
+        for (int y = 0; y < 26; y++) {
+            for (int z = 0; z < 26; z++) {
+                char ring_settings[3] = {x + 'A', y + 'A', z + 'A'};
+                enigma e = create_enigma(rotors,  args->templates[args->num_rotors-1], args->config.positions, ring_settings, plugboard, pairs);
+                char *result = encode_message(args->text, e);
+                destroy_engima(e);
+                double score = ngram_score(result, args->bigrams, 2);
+                free(result);
+                if (score > rs->score) {
+                    strncpy(rs->ring_settings, ring_settings, 3);
+                    rs->score = score;
+                }
+            }
+        }
+    }
+    pthread_exit((void*) rs);
+    return (void*) rs;
 }
 
 void handle_new_score(rotor_config_and_score *best_list, int list_length, rotor_config_and_score new_score) {
@@ -409,4 +449,26 @@ hashmap load_ngram_scores(FILE *f) {
     // destroy_linked_list(ngrams_list);
     // destroy_linked_list(frequencies_list);
     return h;
+}
+
+void multithread_jobs(void *job(void*), void *args[], int num_jobs, void *results[], int max_threads) {
+    pthread_t *threads = calloc(max_threads, sizeof(pthread_t));
+    for (int i = 0; i < num_jobs; i += max_threads) {
+        int jobs_in_batch = num_jobs - i;
+        if (jobs_in_batch > max_threads) { jobs_in_batch = max_threads; }
+        for (int j = 0; j < jobs_in_batch; j++) {
+            pthread_create(&(threads[j]), NULL, job, args[i+j]);
+        }
+        for (int j = 0; j < jobs_in_batch; j++) {
+            pthread_join(threads[j], &(results[i+j]));
+        }
+    }
+    free(threads);
+}
+
+void destroy_arr_of_ptrs(void **arr, int length) {
+    for (int i = 0; i < length; i++) {
+        free(arr[i]);
+    }
+    free(arr);
 }
