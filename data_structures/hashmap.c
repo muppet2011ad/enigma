@@ -2,7 +2,7 @@
 
 hashmap new_hashmap(int num_buckets, double max_load_factor, int (*key_equality_func)(void*, void*), int (*hash_function)(void*, int)) {
     hashmap h = malloc(sizeof(struct hashmap_structure));
-    h->buckets = calloc(num_buckets, sizeof(struct linked_list_structure));
+    h->buckets = calloc(num_buckets, sizeof(linked_list*));
     h->num_buckets = num_buckets;
     h->key_eq_func = key_equality_func;
     h->hash_function = hash_function;
@@ -15,7 +15,7 @@ hashmap new_hashmap(int num_buckets, double max_load_factor, int (*key_equality_
 
 void resize_hashmap(hashmap h) {
     h->resize_in_progress = 1;
-    linked_list *new_buckets = calloc(2*h->num_buckets, sizeof(struct linked_list_structure));
+    linked_list *new_buckets = calloc(2*h->num_buckets, sizeof(linked_list*));
     linked_list *old_buckets = h->buckets;
     kv_pair *members = hashmap_to_array(h);
     h->buckets = new_buckets;
