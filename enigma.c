@@ -151,7 +151,7 @@ char *read_in_line(FILE *input_file) {
         strcpy(&(combined_string[x]), lines[i]);
         x += strlen(lines[i]);
     }
-    char *final_string = malloc(strlen(combined_string)+1);
+    char *final_string = calloc(strlen(combined_string)+1, sizeof(char));
     x = 0;
     for (int i = 0; i < strlen(combined_string); i++) {
         if (islower(combined_string[i])) {
@@ -163,7 +163,7 @@ char *read_in_line(FILE *input_file) {
         final_string[x] = combined_string[i];
         x++;
     }
-    final_string[strlen(combined_string)] = '\0';
+    //final_string[strlen(combined_string)-1] = '\0';
     destroy_lines(lines, num_lines);
     free(combined_string);
     return final_string;
