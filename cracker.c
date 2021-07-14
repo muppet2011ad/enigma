@@ -211,35 +211,6 @@ int main() {
 
     r_template rotors[3] = {templates[config.rotors[0]], templates[config.rotors[1]], templates[config.rotors[2]]};
 
-    // Add this step to try and deal with positions and ring settings being incorrectly set
-    rotor_config_and_score final_config = {0};
-    final_config.score = -1e8;
-    memcpy(final_config.rotors, config.rotors, 3*sizeof(int));
-    memcpy(final_config.plugboard, config.plugboard, 27);
-    memcpy(final_config.pairs, config.pairs, 30);
-
-    for (int i = 0; i < 26; i++) {
-        for (int j = -1; j < 2; j+=2) {
-            char positions[3];
-            char ring_settings[3];
-            memcpy(positions, config.positions, 3);
-            memcpy(ring_settings, config.ring_settings, 3);
-            for (int x = 0; x < 3; x++) {
-                positions[x] = mod(positions[x] + i, 26);
-                ring_settings[x] = mod(ring_settings[x] + (j*i), 26);
-            }
-            enigma e = create_enigma(rotors, templates[num_rotors-1], positions, ring_settings, plugboard, pairs);
-            char *result = encode_message(contents, e);
-            destroy_engima(e);
-            double score = ngram_score(result, trigrams, 3);
-            if (score > final_config.score) {
-                final_config.score = score;
-                memcpy(final_config.positions, positions, 3);
-                memcpy(final_config.ring_settings, ring_settings, 3);
-            }
-        }
-    }
-
     // Now it's time to try and conquer the plugboard with the power of quadgrams
 
     //memcpy(final_config.positions, "ZDV", 3);
@@ -259,7 +230,7 @@ int main() {
                         strncpy(temp_plugboard, plugboard, 27);
                         temp_plugboard[x] = b;
                         temp_plugboard[y] = a;
-                        enigma e = create_enigma(rotors, templates[num_rotors-1], final_config.positions, final_config.ring_settings, temp_plugboard, pairs);
+                        enigma e = create_enigma(rotors, templates[num_rotors-1], config.positions, config.ring_settings, temp_plugboard, pairs);
                         char *result = encode_message(contents, e);
                         destroy_engima(e);
                         double score = ngram_score(result, quadgrams, 4);
@@ -285,6 +256,36 @@ int main() {
         pairs[3*(NUM_PLUGS)-1] = '\0';
     #endif
 
+    // Add this step to try and deal with positions and ring settings being incorrectly set
+    rotor_config_and_score final_config = {0};
+    final_config.score = -1e8;
+    memcpy(final_config.rotors, config.rotors, 3*sizeof(int));
+    memcpy(final_config.plugboard, plugboard, 27);
+    memcpy(final_config.pairs, pairs, 30);
+
+    for (int i = 0; i < 26; i++) {
+        for (int j = -1; j < 2; j+=2) {
+            char positions[3];
+            char ring_settings[3];
+            memcpy(positions, config.positions, 3);
+            memcpy(ring_settings, config.ring_settings, 3);
+            for (int x = 0; x < 3; x++) {
+                positions[x] = mod(positions[x] + i, 26);
+                ring_settings[x] = mod(ring_settings[x] + (j*i), 26);
+            }
+            enigma e = create_enigma(rotors, templates[num_rotors-1], positions, ring_settings, plugboard, pairs);
+            char *result = encode_message(contents, e);
+            destroy_engima(e);
+            double score = ngram_score(result, quadgrams, 4);
+            free(result);
+            if (score > final_config.score) {
+                final_config.score = score;
+                memcpy(final_config.positions, positions, 3);
+                memcpy(final_config.ring_settings, ring_settings, 3);
+            }
+        }
+    }
+
     // Now it's just time to output results.
     enigma e = create_enigma(rotors, templates[num_rotors-1], final_config.positions, final_config.ring_settings, plugboard, pairs);
     printf("Final solution:\n");
@@ -295,6 +296,10 @@ int main() {
 
     destroy_engima(e);
     free(result);
+
+    destroy_hashmap(bigrams, 1);
+    destroy_hashmap(trigrams, 1);
+    destroy_hashmap(quadgrams, 1);
 
     free(contents);
     free(templates);
